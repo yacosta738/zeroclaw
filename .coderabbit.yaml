@@ -27,9 +27,8 @@ reviews:
     # Enable base branch analysis
     base_branch_analysis: true
   
-  # Poem configuration
-  poem:
-    enabled: false
+  # Poem configuration (expects boolean)
+  poem: false
   
   # Reviewer suggestions
   reviewer:
