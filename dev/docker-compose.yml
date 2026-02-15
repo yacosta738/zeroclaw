@@ -25,7 +25,8 @@ services:
       - ZEROCLAW_GATEWAY_PORT=3000
       - SANDBOX_HOST=zeroclaw-sandbox
     volumes:
-      - ../target/.zeroclaw:/zeroclaw-data/.zeroclaw # Mount config and workspace
+      - ../target/.zeroclaw:/zeroclaw-data/.zeroclaw # Config only
+      - ../playground:/zeroclaw-data/workspace # Shared workspace with Sandbox
     ports:
       - "127.0.0.1:3000:3000"
     networks:

@@ -53,12 +53,14 @@ Use this to act as the "user" or "environment" the agent interacts with.
    zeroclaw --version
    ```
 
-### 5. Persistence
-The local `playground/` directory (in repo root) is mounted to:
-- Agent: `/zeroclaw-data/.zeroclaw/workspace`
-- Sandbox: `/home/developer/workspace`
+### 5. Persistence & Shared Workspace
+The local `playground/` directory (in repo root) is mounted as the shared workspace:
+- **Agent**: `/zeroclaw-data/workspace`
+- **Sandbox**: `/home/developer/workspace`
 
-Files created here persist after containers stop.
+Files created by the agent are visible to the sandbox user, and vice versa.
+
+The agent configuration lives in `target/.zeroclaw` (mounted to `/zeroclaw-data/.zeroclaw`), so settings persist across container rebuilds.
 
 ### 6. Cleanup
 Stop containers and remove volumes (wipes workspace data):

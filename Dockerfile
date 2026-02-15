@@ -2,8 +2,18 @@
 FROM rust:1.83-slim AS builder
 
 WORKDIR /app
-COPY . .
 
+# 1. Copy manifests to cache dependencies
+COPY Cargo.toml Cargo.lock ./
+# Create dummy main.rs to build dependencies
+RUN mkdir src && echo "fn main() {}" > src/main.rs
+RUN cargo build --release --locked
+RUN rm -rf src
+
+# 2. Copy source code
+COPY . .
+# Touch main.rs to force rebuild
+RUN touch src/main.rs
 RUN cargo build --release --locked && \
     strip target/release/zeroclaw
 

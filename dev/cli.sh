@@ -5,7 +5,7 @@ set -e
 if [ -f "dev/docker-compose.yml" ]; then
     BASE_DIR="dev"
     HOST_TARGET_DIR="target"
-elif [ -f "docker-compose.yml" ] && [ "$(basename $(pwd))" == "dev" ]; then
+elif [ -f "docker-compose.yml" ] && [ "$(basename "$(pwd)")" == "dev" ]; then
     BASE_DIR="."
     HOST_TARGET_DIR="../target"
 else
@@ -32,11 +32,12 @@ function ensure_config {
         
         # Default config required for docker networking (0.0.0.0 bind)
         cat > "$CONFIG_FILE" <<EOF
-workspace_dir = "/zeroclaw-data/.zeroclaw/workspace"
+workspace_dir = "/zeroclaw-data/workspace"
 config_path = "/zeroclaw-data/.zeroclaw/config.toml"
-api_key = ""
-default_provider = "openrouter"
-default_model = "anthropic/claude-sonnet-4-20250514"
+# This is the Ollama Base URL, not a secret key
+api_key = "http://host.docker.internal:11434"
+default_provider = "ollama"
+default_model = "llama3.2"
 default_temperature = 0.7
 
 [gateway]
