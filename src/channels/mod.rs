@@ -21,10 +21,10 @@ pub use traits::Channel;
 pub use whatsapp::WhatsAppChannel;
 
 use crate::config::Config;
+use crate::identity;
 use crate::memory::{self, Memory};
 use crate::providers::{self, Provider};
 use crate::util::truncate_with_ellipsis;
-use crate::identity;
 use anyhow::Result;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
