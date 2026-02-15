@@ -1,0 +1,174 @@
+flowchart TB
+    %% Styles
+    classDef chatApps fill:#1c2333,stroke:#3b82f6,color:#93c5fd
+    classDef security fill:#292524,stroke:#f59e0b,color:#fbbf24,stroke-dasharray: 4 2
+    classDef tunnel fill:#1c2333,stroke:#06b6d4,color:#67e8f9
+    classDef providers fill:#1a2e1a,stroke:#22c55e,color:#86efac
+    classDef agent fill:#1e2436,stroke:#22c55e,color:#4ade80
+    classDef memory fill:#1e1e36,stroke:#8b5cf6,color:#c4b5fd
+    classDef sandbox fill:#1c2333,stroke:#ef4444,color:#fca5a5
+    classDef heartbeat fill:#1c2333,stroke:#06b6d4,color:#67e8f9
+    classDef wizard fill:#2d1f3d,stroke:#c084fc,color:#e9d5ff
+
+    %% Title
+    subgraph Title[" "]
+        direction TB
+        T1["ZeroClaw Architecture"]:::agent
+        T2["Zero overhead. Zero compromise. 100% Rust. 100% Agnostic. 8 pluggable traits."]:::agent
+    end
+
+    %% Chat Apps
+    subgraph ChatApps["📱 Chat Apps"]
+        direction TB
+        CA1["Telegram"]:::chatApps
+        CA2["Discord"]:::chatApps
+        CA3["Slack"]:::chatApps
+        CA4["iMessage"]:::chatApps
+        CA5["Matrix"]:::chatApps
+        CA6["Webhook"]:::chatApps
+        CA7["CLI"]:::chatApps
+        CA8["+ any Channel trait"]:::chatApps
+    end
+
+    %% Security Layer
+    subgraph Security["🔒 Security Layer"]
+        direction TB
+        S1["Gateway Pairing<br/>6-digit OTP + bearer tokens<br/>constant-time comparison"]:::security
+        S2["Auth Gate<br/>Channel allowlists + webhook_secret"]:::security
+        S3["Rate Limiter<br/>sliding window, cost/day cap"]:::security
+        S4["Filesystem Sandbox<br/>path jail + null byte block<br/>symlink escape detection"]:::security
+        S5["Encrypted Secrets<br/>XOR + local key file (0600)"]:::security
+    end
+
+    %% Agnostic Tunnel
+    subgraph Tunnel["🌐 Agnostic Tunnel<br/>Bring Your Own"]
+        direction TB
+        TUN1["Cloudflare"]:::tunnel
+        TUN2["Tailscale"]:::tunnel
+        TUN3["ngrok"]:::tunnel
+        TUN4["Custom: bore, frp, ssh..."]:::tunnel
+        TUN5["+ any Tunnel trait"]:::tunnel
+    end
+
+    %% AI Providers
+    subgraph Providers["🤖 AI Providers (22+)<br/>Any OpenAI-compatible API"]
+        direction TB
+        subgraph ProviderGrid[" "]
+            direction LR
+            P1["OpenRouter"]:::providers
+            P2["Anthropic"]:::providers
+            P3["OpenAI"]:::providers
+            P4["Ollama"]:::providers
+        end
+        subgraph ProviderGrid2[" "]
+            direction LR
+            P5["Venice"]:::providers
+            P6["Groq"]:::providers
+            P7["Mistral"]:::providers
+            P8["xAI / Grok"]:::providers
+        end
+        subgraph ProviderGrid3[" "]
+            direction LR
+            P9["DeepSeek"]:::providers
+            P10["Together AI"]:::providers
+            P11["Fireworks"]:::providers
+            P12["Perplexity"]:::providers
+        end
+        subgraph ProviderGrid4[" "]
+            direction LR
+            P13["Cohere"]:::providers
+            P14["Cloudflare AI"]:::providers
+            P15["Bedrock"]:::providers
+            P16["custom:URL"]:::providers
+        end
+        P17["+ any Provider trait / custom:URL"]:::providers
+    end
+
+    %% Agent Loop
+    subgraph AgentLoop["🔄 Agent Loop"]
+        direction LR
+        A1["Message<br/>In"]:::agent
+        A2["Memory Recall<br/>ctx"]:::agent
+        A3["LLM<br/>AI"]:::agent
+        A4["Tools<br/>exec"]:::agent
+        A5["Memory Save<br/>store"]:::agent
+        A6["Response<br/>Out"]:::agent
+        A7["Composio<br/>1000+ OAuth"]:::agent
+        
+        A1 --> A2 --> A3 --> A4 --> A5 --> A6
+    end
+
+    %% Memory Search Engine
+    subgraph MemoryEngine["💾 Memory Search Engine (All Custom)<br/>No Pinecone, no Elasticsearch, no LangChain"]
+        direction TB
+        subgraph MemGrid1[" "]
+            direction LR
+            M1["Vector DB<br/>SQLite BLOB + cosine similarity"]:::memory
+            M2["Keyword<br/>FTS5 virtual tables + BM25"]:::memory
+        end
+        subgraph MemGrid2[" "]
+            direction LR
+            M3["Hybrid Merge<br/>Weighted vector + keyword fusion"]:::memory
+            M4["Embeddings<br/>OpenAI / custom URL / noop"]:::memory
+        end
+        subgraph MemGrid3[" "]
+            direction LR
+            M5["Chunking<br/>Markdown-aware + heading ctx"]:::memory
+            M6["Caching<br/>embedding_cache + LRU eviction"]:::memory
+        end
+        M7["Safe Reindex: rebuild FTS5 + re-embed missing vectors atomically | LIKE fallback | Upsert/Delete/Reindex"]:::memory
+    end
+
+    %% Sandbox
+    subgraph Sandbox["⛓️ Sandbox"]
+        direction TB
+        SAN1["Command allowlist"]:::sandbox
+        SAN2["Path jail + traversal block"]:::sandbox
+        SAN3["Browser domain allowlist"]:::sandbox
+        SAN4["Null byte + Symlink escape block"]:::sandbox
+        SAN5["System dirs + Dotfiles blocked"]:::sandbox
+        SAN6["Default: Supervised + workspace-only"]:::sandbox
+        SAN7["Levels: ReadOnly / Supervised / Full"]:::sandbox
+    end
+
+    %% Heartbeat & Cron
+    subgraph Heartbeat["⏰ Heartbeat & Cron"]
+        direction TB
+        H1["HEARTBEAT.md periodic tasks"]:::heartbeat
+        H2["Scheduled actions"]:::heartbeat
+        H3["Skills loader (TOML manifests)"]:::heartbeat
+        H4["50+ integrations registry"]:::heartbeat
+        H5["Observability: noop/log/multi"]:::heartbeat
+    end
+
+    %% Setup Wizard
+    subgraph Wizard["🧙 Setup Wizard"]
+        direction TB
+        WTitle["zeroclaw onboard (quick default | --interactive for full wizard)<br/>7 steps, under 60 seconds | Live connection testing | Secure defaults"]:::wizard
+        subgraph WizardSteps[" "]
+            direction LR
+            W1["1. Workspace<br/>~/.zeroclaw/"]:::wizard
+            W2["2. AI Provider<br/>22+ or custom URL"]:::wizard
+            W3["3. Channels<br/>7 channels + live test"]:::wizard
+            W4["4. Tunnel<br/>5 providers or skip"]:::wizard
+            W5["5. Tool Mode<br/>Sovereign / Composio"]:::wizard
+            W6["6. Personalize<br/>name, style, timezone"]:::wizard
+            W7["7. Scaffold<br/>8 workspace MD files"]:::wizard
+            
+            W1 --> W2 --> W3 --> W4 --> W5 --> W6 --> W7
+        end
+        WSummary["Full summary: Provider, Model, Channels, Tunnel, Composio, Secrets, Gateway, Autonomy, Memory"]:::wizard
+        WReady["✅ Ready -- zeroclaw agent"]:::agent
+    end
+
+    %% Footer
+    Footer["~3.4MB binary | <10ms startup | 1,050 tests | 22+ providers | 8 traits | 18,900+ lines of Rust | 0 clippy warnings"]:::agent
+
+    %% Connections
+    ChatApps --> Security
+    Security --> AgentLoop
+    Tunnel --> AgentLoop
+    Providers -.->|LLM Input| A3
+    AgentLoop --> MemoryEngine
+    AgentLoop --> Sandbox
+    AgentLoop --> Heartbeat
