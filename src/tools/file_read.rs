@@ -39,6 +39,8 @@ impl Tool for FileReadTool {
     }
 
     async fn execute(&self, args: serde_json::Value) -> anyhow::Result<ToolResult> {
+        const MAX_FILE_SIZE: u64 = 10 * 1024 * 1024;
+
         let path = args
             .get("path")
             .and_then(|v| v.as_str())
@@ -79,7 +81,6 @@ impl Tool for FileReadTool {
         }
 
         // Check file size AFTER canonicalization to prevent TOCTOU symlink bypass
-        const MAX_FILE_SIZE: u64 = 10 * 1024 * 1024;
         match tokio::fs::metadata(&resolved_path).await {
             Ok(meta) => {
                 if meta.len() > MAX_FILE_SIZE {

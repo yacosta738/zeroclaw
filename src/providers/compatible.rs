@@ -44,8 +44,8 @@ impl OpenAiCompatibleProvider {
         }
     }
 
-    /// Build the full URL for chat completions, detecting if base_url already includes the path.
-    /// This allows custom providers with non-standard endpoints (e.g., VolcEngine ARK uses
+    /// Build the full URL for chat completions, detecting if `base_url` already includes the path.
+    /// This allows custom providers with non-standard endpoints (e.g., `VolcEngine` ARK uses
     /// `/api/coding/v3/chat/completions` instead of `/v1/chat/completions`).
     fn chat_completions_url(&self) -> String {
         // If base_url already contains "chat/completions", use it as-is
@@ -56,7 +56,7 @@ impl OpenAiCompatibleProvider {
         }
     }
 
-    /// Build the full URL for responses API, detecting if base_url already includes the path.
+    /// Build the full URL for responses API, detecting if `base_url` already includes the path.
     fn responses_url(&self) -> String {
         // If base_url already contains "responses", use it as-is
         if self.base_url.contains("responses") {
@@ -143,7 +143,7 @@ fn first_nonempty(text: Option<&str>) -> Option<String> {
     })
 }
 
-fn extract_responses_text(response: ResponsesResponse) -> Option<String> {
+fn extract_responses_text(response: &ResponsesResponse) -> Option<String> {
     if let Some(text) = first_nonempty(response.output_text.as_deref()) {
         return Some(text);
     }
@@ -213,7 +213,7 @@ impl OpenAiCompatibleProvider {
 
         let responses: ResponsesResponse = response.json().await?;
 
-        extract_responses_text(responses)
+        extract_responses_text(&responses)
             .ok_or_else(|| anyhow::anyhow!("No response from {} Responses API", self.name))
     }
 }
@@ -418,7 +418,7 @@ mod tests {
         let json = r#"{"output_text":"Hello from top-level","output":[]}"#;
         let response: ResponsesResponse = serde_json::from_str(json).unwrap();
         assert_eq!(
-            extract_responses_text(response).as_deref(),
+            extract_responses_text(&response).as_deref(),
             Some("Hello from top-level")
         );
     }
@@ -429,7 +429,7 @@ mod tests {
             r#"{"output":[{"content":[{"type":"output_text","text":"Hello from nested"}]}]}"#;
         let response: ResponsesResponse = serde_json::from_str(json).unwrap();
         assert_eq!(
-            extract_responses_text(response).as_deref(),
+            extract_responses_text(&response).as_deref(),
             Some("Hello from nested")
         );
     }
@@ -439,7 +439,7 @@ mod tests {
         let json = r#"{"output":[{"content":[{"type":"message","text":"Fallback text"}]}]}"#;
         let response: ResponsesResponse = serde_json::from_str(json).unwrap();
         assert_eq!(
-            extract_responses_text(response).as_deref(),
+            extract_responses_text(&response).as_deref(),
             Some("Fallback text")
         );
     }
@@ -452,14 +452,20 @@ mod tests {
     fn chat_completions_url_standard_openai() {
         // Standard OpenAI-compatible providers get /chat/completions appended
         let p = make_provider("openai", "https://api.openai.com/v1", None);
-        assert_eq!(p.chat_completions_url(), "https://api.openai.com/v1/chat/completions");
+        assert_eq!(
+            p.chat_completions_url(),
+            "https://api.openai.com/v1/chat/completions"
+        );
     }
 
     #[test]
     fn chat_completions_url_trailing_slash() {
         // Trailing slash is stripped, then /chat/completions appended
         let p = make_provider("test", "https://api.example.com/v1/", None);
-        assert_eq!(p.chat_completions_url(), "https://api.example.com/v1/chat/completions");
+        assert_eq!(
+            p.chat_completions_url(),
+            "https://api.example.com/v1/chat/completions"
+        );
     }
 
     #[test]
@@ -515,14 +521,20 @@ mod tests {
     fn chat_completions_url_without_v1() {
         // Provider configured without /v1 in base URL
         let p = make_provider("test", "https://api.example.com", None);
-        assert_eq!(p.chat_completions_url(), "https://api.example.com/chat/completions");
+        assert_eq!(
+            p.chat_completions_url(),
+            "https://api.example.com/chat/completions"
+        );
     }
 
     #[test]
     fn chat_completions_url_base_with_v1() {
         // Provider configured with /v1 in base URL
         let p = make_provider("test", "https://api.example.com/v1", None);
-        assert_eq!(p.chat_completions_url(), "https://api.example.com/v1/chat/completions");
+        assert_eq!(
+            p.chat_completions_url(),
+            "https://api.example.com/v1/chat/completions"
+        );
     }
 
     // ══════════════════════════════════════════════════════════

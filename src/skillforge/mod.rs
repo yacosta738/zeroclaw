@@ -1,4 +1,4 @@
-//! SkillForge — Skill auto-discovery, evaluation, and integration engine.
+//! `SkillForge` — Skill auto-discovery, evaluation, and integration engine.
 //!
 //! Pipeline: Scout → Evaluate → Integrate
 //! Discovers skills from external sources, scores them, and generates
@@ -78,10 +78,7 @@ impl std::fmt::Debug for SkillForgeConfig {
             .field("sources", &self.sources)
             .field("scan_interval_hours", &self.scan_interval_hours)
             .field("min_score", &self.min_score)
-            .field(
-                "github_token",
-                &self.github_token.as_ref().map(|_| "***"),
-            )
+            .field("github_token", &self.github_token.as_ref().map(|_| "***"))
             .field("output_dir", &self.output_dir)
             .finish()
     }
@@ -143,7 +140,7 @@ impl SkillForge {
             let source: ScoutSource = src.parse().unwrap(); // Infallible
             match source {
                 ScoutSource::GitHub => {
-                    let scout = GitHubScout::new(self.config.github_token.clone());
+                    let scout = GitHubScout::new(self.config.github_token.as_deref());
                     match scout.discover().await {
                         Ok(mut found) => {
                             info!(count = found.len(), "GitHub scout returned candidates");
@@ -155,7 +152,10 @@ impl SkillForge {
                     }
                 }
                 ScoutSource::ClawHub | ScoutSource::HuggingFace => {
-                    info!(source = src.as_str(), "Source not yet implemented — skipping");
+                    info!(
+                        source = src.as_str(),
+                        "Source not yet implemented — skipping"
+                    );
                 }
             }
         }

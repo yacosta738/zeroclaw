@@ -42,8 +42,7 @@ impl AnthropicProvider {
 
     pub fn with_base_url(api_key: Option<&str>, base_url: Option<&str>) -> Self {
         let base_url = base_url
-            .map(|u| u.trim_end_matches('/'))
-            .unwrap_or("https://api.anthropic.com")
+            .map_or("https://api.anthropic.com", |u| u.trim_end_matches('/'))
             .to_string();
         Self {
             credential: api_key
@@ -154,7 +153,8 @@ mod tests {
 
     #[test]
     fn creates_with_custom_base_url() {
-        let p = AnthropicProvider::with_base_url(Some("sk-ant-test"), Some("https://api.example.com"));
+        let p =
+            AnthropicProvider::with_base_url(Some("sk-ant-test"), Some("https://api.example.com"));
         assert_eq!(p.base_url, "https://api.example.com");
         assert_eq!(p.credential.as_deref(), Some("sk-ant-test"));
     }

@@ -130,7 +130,7 @@ impl SqliteMemory {
     }
 
     /// Deterministic content hash for embedding cache.
-    /// Uses SHA-256 (truncated) instead of DefaultHasher, which is
+    /// Uses SHA-256 (truncated) instead of `DefaultHasher`, which is
     /// explicitly documented as unstable across Rust versions.
     fn content_hash(text: &str) -> String {
         use sha2::{Digest, Sha256};
@@ -138,7 +138,11 @@ impl SqliteMemory {
         // First 8 bytes → 16 hex chars, matching previous format length
         format!(
             "{:016x}",
-            u64::from_be_bytes(hash[..8].try_into().expect("SHA-256 always produces >= 8 bytes"))
+            u64::from_be_bytes(
+                hash[..8]
+                    .try_into()
+                    .expect("SHA-256 always produces >= 8 bytes")
+            )
         )
     }
 

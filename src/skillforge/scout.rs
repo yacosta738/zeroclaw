@@ -73,21 +73,19 @@ pub struct GitHubScout {
 }
 
 impl GitHubScout {
-    pub fn new(token: Option<String>) -> Self {
+    pub fn new(token: Option<&str>) -> Self {
         use std::time::Duration;
 
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert(
             reqwest::header::ACCEPT,
-            "application/vnd.github+json"
-                .parse()
-                .expect("valid header"),
+            "application/vnd.github+json".parse().expect("valid header"),
         );
         headers.insert(
             reqwest::header::USER_AGENT,
             "ZeroClaw-SkillForge/0.1".parse().expect("valid header"),
         );
-        if let Some(ref t) = token {
+        if let Some(t) = token {
             if let Ok(val) = format!("Bearer {t}").parse() {
                 headers.insert(reqwest::header::AUTHORIZATION, val);
             }
@@ -101,18 +99,14 @@ impl GitHubScout {
 
         Self {
             client,
-            queries: vec![
-                "zeroclaw skill".into(),
-                "ai agent skill".into(),
-            ],
+            queries: vec!["zeroclaw skill".into(), "ai agent skill".into()],
         }
     }
 
     /// Parse the GitHub search/repositories JSON response.
     fn parse_items(body: &serde_json::Value) -> Vec<ScoutResult> {
-        let items = match body.get("items").and_then(|v| v.as_array()) {
-            Some(arr) => arr,
-            None => return vec![],
+        let Some(items) = body.get("items").and_then(|v| v.as_array()) else {
+            return vec![];
         };
 
         items
@@ -127,7 +121,7 @@ impl GitHubScout {
                     .to_string();
                 let stars = item
                     .get("stargazers_count")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0);
                 let language = item
                     .get("language")
@@ -143,10 +137,7 @@ impl GitHubScout {
                     .and_then(|v| v.as_str())
                     .unwrap_or("unknown")
                     .to_string();
-                let has_license = item
-                    .get("license")
-                    .map(|v| !v.is_null())
-                    .unwrap_or(false);
+                let has_license = item.get("license").is_some_and(|v| !v.is_null());
 
                 Some(ScoutResult {
                     name,
@@ -225,9 +216,7 @@ impl Scout for GitHubScout {
 
 /// Minimal percent-encoding for query strings (space → +).
 fn urlencoding(s: &str) -> String {
-    s.replace(' ', "+")
-        .replace('&', "%26")
-        .replace('#', "%23")
+    s.replace(' ', "+").replace('&', "%26").replace('#', "%23")
 }
 
 /// Deduplicate scout results by URL (keeps first occurrence).
@@ -246,13 +235,31 @@ mod tests {
 
     #[test]
     fn scout_source_from_str() {
-        assert_eq!("github".parse::<ScoutSource>().unwrap(), ScoutSource::GitHub);
-        assert_eq!("GitHub".parse::<ScoutSource>().unwrap(), ScoutSource::GitHub);
-        assert_eq!("clawhub".parse::<ScoutSource>().unwrap(), ScoutSource::ClawHub);
-        assert_eq!("huggingface".parse::<ScoutSource>().unwrap(), ScoutSource::HuggingFace);
-        assert_eq!("hf".parse::<ScoutSource>().unwrap(), ScoutSource::HuggingFace);
+        assert_eq!(
+            "github".parse::<ScoutSource>().unwrap(),
+            ScoutSource::GitHub
+        );
+        assert_eq!(
+            "GitHub".parse::<ScoutSource>().unwrap(),
+            ScoutSource::GitHub
+        );
+        assert_eq!(
+            "clawhub".parse::<ScoutSource>().unwrap(),
+            ScoutSource::ClawHub
+        );
+        assert_eq!(
+            "huggingface".parse::<ScoutSource>().unwrap(),
+            ScoutSource::HuggingFace
+        );
+        assert_eq!(
+            "hf".parse::<ScoutSource>().unwrap(),
+            ScoutSource::HuggingFace
+        );
         // unknown falls back to GitHub
-        assert_eq!("unknown".parse::<ScoutSource>().unwrap(), ScoutSource::GitHub);
+        assert_eq!(
+            "unknown".parse::<ScoutSource>().unwrap(),
+            ScoutSource::GitHub
+        );
     }
 
     #[test]

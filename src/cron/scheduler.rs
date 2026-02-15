@@ -156,7 +156,7 @@ async fn run_job_command(
     }
 
     let output = Command::new("sh")
-        .arg("-lc")
+        .arg("-c")
         .arg(&job.command)
         .current_dir(&config.workspace_dir)
         .output()

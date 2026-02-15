@@ -1,3 +1,4 @@
+#![allow(clippy::similar_names)]
 use super::Provider;
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -28,7 +29,7 @@ impl RouterProvider {
     /// Create a new router with a default provider and optional routes.
     ///
     /// `providers` is a list of (name, provider) pairs. The first one is the default.
-    /// `routes` maps hint names to Route structs containing provider_name and model.
+    /// `routes` maps hint names to Route structs containing `provider_name` and model.
     pub fn new(
         providers: Vec<(String, Box<dyn Provider>)>,
         routes: Vec<(String, Route)>,
@@ -46,16 +47,15 @@ impl RouterProvider {
             .into_iter()
             .filter_map(|(hint, route)| {
                 let index = name_to_index.get(route.provider_name.as_str()).copied();
-                match index {
-                    Some(i) => Some((hint, (i, route.model))),
-                    None => {
-                        tracing::warn!(
-                            hint = hint,
-                            provider = route.provider_name,
-                            "Route references unknown provider, skipping"
-                        );
-                        None
-                    }
+                if let Some(i) = index {
+                    Some((hint, (i, route.model)))
+                } else {
+                    tracing::warn!(
+                        hint = hint,
+                        provider = route.provider_name,
+                        "Route references unknown provider, skipping"
+                    );
+                    None
                 }
             })
             .collect();
@@ -68,11 +68,11 @@ impl RouterProvider {
         }
     }
 
-    /// Resolve a model parameter to a (provider, actual_model) pair.
+    /// Resolve a model parameter to a (provider, `actual_model`) pair.
     ///
     /// If the model starts with "hint:", look up the hint in the route table.
     /// Otherwise, use the default provider with the given model name.
-    /// Resolve a model parameter to a (provider_index, actual_model) pair.
+    /// Resolve a model parameter to a (`provider_index`, `actual_model`) pair.
     fn resolve(&self, model: &str) -> (usize, String) {
         if let Some(hint) = model.strip_prefix("hint:") {
             if let Some((idx, resolved_model)) = self.routes.get(hint) {
@@ -181,7 +181,10 @@ mod tests {
             .iter()
             .zip(mocks.iter())
             .map(|((name, _), mock)| {
-                (name.to_string(), Box::new(Arc::clone(mock)) as Box<dyn Provider>)
+                (
+                    name.to_string(),
+                    Box::new(Arc::clone(mock)) as Box<dyn Provider>,
+                )
             })
             .collect();
 
@@ -198,11 +201,7 @@ mod tests {
             })
             .collect();
 
-        let router = RouterProvider::new(
-            provider_list,
-            route_list,
-            "default-model".to_string(),
-        );
+        let router = RouterProvider::new(provider_list, route_list, "default-model".to_string());
 
         (router, mocks)
     }
@@ -270,7 +269,10 @@ mod tests {
     #[tokio::test]
     async fn non_hint_model_uses_default_provider() {
         let (router, mocks) = make_router(
-            vec![("primary", "primary-response"), ("secondary", "secondary-response")],
+            vec![
+                ("primary", "primary-response"),
+                ("secondary", "secondary-response"),
+            ],
             vec![("code", "secondary", "codellama")],
         );
 
@@ -285,10 +287,7 @@ mod tests {
 
     #[test]
     fn resolve_preserves_model_for_non_hints() {
-        let (router, _) = make_router(
-            vec![("default", "ok")],
-            vec![],
-        );
+        let (router, _) = make_router(vec![("default", "ok")], vec![]);
 
         let (idx, model) = router.resolve("gpt-4o");
         assert_eq!(idx, 0);
@@ -320,10 +319,7 @@ mod tests {
 
     #[tokio::test]
     async fn warmup_calls_all_providers() {
-        let (router, _) = make_router(
-            vec![("a", "ok"), ("b", "ok")],
-            vec![],
-        );
+        let (router, _) = make_router(vec![("a", "ok"), ("b", "ok")], vec![]);
 
         // Warmup should not error
         assert!(router.warmup().await.is_ok());
@@ -333,7 +329,10 @@ mod tests {
     async fn chat_with_system_passes_system_prompt() {
         let mock = Arc::new(MockProvider::new("response"));
         let router = RouterProvider::new(
-            vec![("default".into(), Box::new(Arc::clone(&mock)) as Box<dyn Provider>)],
+            vec![(
+                "default".into(),
+                Box::new(Arc::clone(&mock)) as Box<dyn Provider>,
+            )],
             vec![],
             "model".into(),
         );

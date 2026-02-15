@@ -1726,17 +1726,15 @@ fn setup_channels() -> Result<ChannelsConfig> {
                     .default("6697".into())
                     .interact_text()?;
 
-                let port: u16 = match port_str.trim().parse() {
-                    Ok(p) => p,
-                    Err(_) => {
-                        println!("  {} Invalid port, using 6697", style("→").dim());
-                        6697
-                    }
+                let port: u16 = if let Ok(p) = port_str.trim().parse() {
+                    p
+                } else {
+                    println!("  {} Invalid port, using 6697", style("→").dim());
+                    6697
                 };
 
-                let nickname: String = Input::new()
-                    .with_prompt("  Bot nickname")
-                    .interact_text()?;
+                let nickname: String =
+                    Input::new().with_prompt("  Bot nickname").interact_text()?;
 
                 if nickname.trim().is_empty() {
                     println!("  {} Skipped — nickname required", style("→").dim());
@@ -1779,7 +1777,9 @@ fn setup_channels() -> Result<ChannelsConfig> {
                 };
 
                 if allowed_users.is_empty() {
-                    print_bullet("⚠️  Empty allowlist — only you can interact. Add nicknames above.");
+                    print_bullet(
+                        "⚠️  Empty allowlist — only you can interact. Add nicknames above.",
+                    );
                 }
 
                 println!();

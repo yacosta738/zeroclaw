@@ -572,7 +572,11 @@ mod tests {
 
         let signature_header = compute_whatsapp_signature_header(app_secret, body);
 
-        assert!(verify_whatsapp_signature(app_secret, body, &signature_header));
+        assert!(verify_whatsapp_signature(
+            app_secret,
+            body,
+            &signature_header
+        ));
     }
 
     #[test]
@@ -583,7 +587,11 @@ mod tests {
 
         let signature_header = compute_whatsapp_signature_header(wrong_secret, body);
 
-        assert!(!verify_whatsapp_signature(app_secret, body, &signature_header));
+        assert!(!verify_whatsapp_signature(
+            app_secret,
+            body,
+            &signature_header
+        ));
     }
 
     #[test]
@@ -610,7 +618,11 @@ mod tests {
         // Signature without "sha256=" prefix
         let signature_header = "abc123def456";
 
-        assert!(!verify_whatsapp_signature(app_secret, body, signature_header));
+        assert!(!verify_whatsapp_signature(
+            app_secret,
+            body,
+            signature_header
+        ));
     }
 
     #[test]
@@ -643,7 +655,11 @@ mod tests {
 
         let signature_header = compute_whatsapp_signature_header(app_secret, body);
 
-        assert!(verify_whatsapp_signature(app_secret, body, &signature_header));
+        assert!(verify_whatsapp_signature(
+            app_secret,
+            body,
+            &signature_header
+        ));
     }
 
     #[test]
@@ -653,7 +669,11 @@ mod tests {
 
         let signature_header = compute_whatsapp_signature_header(app_secret, body);
 
-        assert!(verify_whatsapp_signature(app_secret, body, &signature_header));
+        assert!(verify_whatsapp_signature(
+            app_secret,
+            body,
+            &signature_header
+        ));
     }
 
     #[test]
@@ -663,7 +683,11 @@ mod tests {
 
         let signature_header = compute_whatsapp_signature_header(app_secret, body);
 
-        assert!(verify_whatsapp_signature(app_secret, body, &signature_header));
+        assert!(verify_whatsapp_signature(
+            app_secret,
+            body,
+            &signature_header
+        ));
     }
 
     #[test]
