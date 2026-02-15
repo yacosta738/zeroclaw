@@ -121,6 +121,7 @@ impl Evaluator {
     // -- Dimension scorers --------------------------------------------------
 
     /// Compatibility: favour Rust repos; penalise unknown languages.
+    #[allow(clippy::unused_self)]
     fn score_compatibility(&self, c: &ScoutResult) -> f64 {
         match c.language.as_deref() {
             Some("Rust") => 1.0,
@@ -131,13 +132,16 @@ impl Evaluator {
     }
 
     /// Quality: based on star count (log scale, capped at 1.0).
+    #[allow(clippy::unused_self)]
     fn score_quality(&self, c: &ScoutResult) -> f64 {
         // log2(stars + 1) / 10, capped at 1.0
-        let raw = ((c.stars as f64) + 1.0).log2() / 10.0;
+        let stars = u32::try_from(c.stars).unwrap_or(u32::MAX);
+        let raw = (f64::from(stars) + 1.0).log2() / 10.0;
         raw.min(1.0)
     }
 
     /// Security: license presence + bad-pattern check.
+    #[allow(clippy::unused_self)]
     fn score_security(&self, c: &ScoutResult) -> f64 {
         let mut score: f64 = 0.5;
 

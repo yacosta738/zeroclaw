@@ -1,4 +1,4 @@
-//! SkillForge — Skill auto-discovery, evaluation, and integration engine.
+//! `SkillForge` — Skill auto-discovery, evaluation, and integration engine.
 //!
 //! Pipeline: Scout → Evaluate → Integrate
 //! Discovers skills from external sources, scores them, and generates
@@ -140,7 +140,7 @@ impl SkillForge {
             let source: ScoutSource = src.parse().unwrap(); // Infallible
             match source {
                 ScoutSource::GitHub => {
-                    let scout = GitHubScout::new(self.config.github_token.clone());
+                    let scout = GitHubScout::new(self.config.github_token.as_deref());
                     match scout.discover().await {
                         Ok(mut found) => {
                             info!(count = found.len(), "GitHub scout returned candidates");

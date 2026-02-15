@@ -73,7 +73,7 @@ pub struct GitHubScout {
 }
 
 impl GitHubScout {
-    pub fn new(token: Option<String>) -> Self {
+    pub fn new(token: Option<&str>) -> Self {
         use std::time::Duration;
 
         let mut headers = reqwest::header::HeaderMap::new();
@@ -85,7 +85,7 @@ impl GitHubScout {
             reqwest::header::USER_AGENT,
             "ZeroClaw-SkillForge/0.1".parse().expect("valid header"),
         );
-        if let Some(ref t) = token {
+        if let Some(t) = token {
             if let Ok(val) = format!("Bearer {t}").parse() {
                 headers.insert(reqwest::header::AUTHORIZATION, val);
             }
@@ -105,9 +105,8 @@ impl GitHubScout {
 
     /// Parse the GitHub search/repositories JSON response.
     fn parse_items(body: &serde_json::Value) -> Vec<ScoutResult> {
-        let items = match body.get("items").and_then(|v| v.as_array()) {
-            Some(arr) => arr,
-            None => return vec![],
+        let Some(items) = body.get("items").and_then(|v| v.as_array()) else {
+            return vec![];
         };
 
         items
@@ -122,7 +121,7 @@ impl GitHubScout {
                     .to_string();
                 let stars = item
                     .get("stargazers_count")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0);
                 let language = item
                     .get("language")
@@ -138,7 +137,7 @@ impl GitHubScout {
                     .and_then(|v| v.as_str())
                     .unwrap_or("unknown")
                     .to_string();
-                let has_license = item.get("license").map(|v| !v.is_null()).unwrap_or(false);
+                let has_license = item.get("license").is_some_and(|v| !v.is_null());
 
                 Some(ScoutResult {
                     name,

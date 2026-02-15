@@ -410,11 +410,7 @@ impl Channel for TelegramChannel {
             let plain_status = plain_resp.status();
             let plain_err = plain_resp.text().await.unwrap_or_default();
             anyhow::bail!(
-                "Telegram sendMessage failed (markdown {}: {}; plain {}: {})",
-                markdown_status,
-                markdown_err,
-                plain_status,
-                plain_err
+                "Telegram sendMessage failed (markdown {markdown_status}: {markdown_err}; plain {plain_status}: {plain_err})"
             );
         }
 

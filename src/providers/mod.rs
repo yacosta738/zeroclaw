@@ -317,7 +317,7 @@ pub fn create_resilient_provider(
     )))
 }
 
-/// Create a RouterProvider if model routes are configured, otherwise return a
+/// Create a `RouterProvider` if model routes are configured, otherwise return a
 /// standard resilient provider. The router wraps individual providers per route,
 /// each with its own retry/fallback chain.
 pub fn create_routed_provider(

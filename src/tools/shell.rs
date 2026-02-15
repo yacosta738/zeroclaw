@@ -63,7 +63,7 @@ impl Tool for ShellTool {
             .ok_or_else(|| anyhow::anyhow!("Missing 'command' parameter"))?;
         let approved = args
             .get("approved")
-            .and_then(|v| v.as_bool())
+            .and_then(serde_json::Value::as_bool)
             .unwrap_or(false);
 
         if self.security.is_rate_limited() {

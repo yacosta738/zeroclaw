@@ -461,10 +461,12 @@ fn default_docker_network() -> String {
     "none".into()
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn default_docker_memory_limit_mb() -> Option<u64> {
     Some(512)
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn default_docker_cpu_limit() -> Option<f64> {
     Some(1.0)
 }
@@ -780,9 +782,9 @@ pub struct IrcConfig {
     pub allowed_users: Vec<String>,
     /// Server password (for bouncers like ZNC)
     pub server_password: Option<String>,
-    /// NickServ IDENTIFY password
+    /// `NickServ` IDENTIFY password
     pub nickserv_password: Option<String>,
-    /// SASL PLAIN password (IRCv3)
+    /// SASL PLAIN password (`IRCv3`)
     pub sasl_password: Option<String>,
     /// Verify TLS certificate (default: true)
     pub verify_tls: Option<bool>,
@@ -845,13 +847,15 @@ impl Config {
             let mut config: Config =
                 toml::from_str(&contents).context("Failed to parse config file")?;
             // Set computed paths that are skipped during serialization
-            config.config_path = config_path.clone();
+            config.config_path.clone_from(&config_path);
             config.workspace_dir = zeroclaw_dir.join("workspace");
             Ok(config)
         } else {
-            let mut config = Config::default();
-            config.config_path = config_path.clone();
-            config.workspace_dir = zeroclaw_dir.join("workspace");
+            let config = Config {
+                config_path: config_path.clone(),
+                workspace_dir: zeroclaw_dir.join("workspace"),
+                ..Config::default()
+            };
             config.save()?;
             Ok(config)
         }
@@ -1002,6 +1006,14 @@ fn sync_directory(_path: &Path) -> Result<()> {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+    use std::sync::{Mutex, OnceLock};
+
+    fn env_lock() -> std::sync::MutexGuard<'static, ()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
 
     // ── Defaults ─────────────────────────────────────────────
 
@@ -1222,10 +1234,12 @@ default_temperature = 0.7
         fs::create_dir_all(&dir).unwrap();
 
         let config_path = dir.join("config.toml");
-        let mut config = Config::default();
-        config.workspace_dir = dir.join("workspace");
-        config.config_path = config_path.clone();
-        config.default_model = Some("model-a".into());
+        let mut config = Config {
+            workspace_dir: dir.join("workspace"),
+            config_path: config_path.clone(),
+            default_model: Some("model-a".into()),
+            ..Config::default()
+        };
 
         config.save().unwrap();
         assert!(config_path.exists());
@@ -1241,7 +1255,11 @@ default_temperature = 0.7
             .map(|entry| entry.unwrap().file_name().to_string_lossy().to_string())
             .collect();
         assert!(!names.iter().any(|name| name.contains(".tmp-")));
-        assert!(!names.iter().any(|name| name.ends_with(".bak")));
+        assert!(!names.iter().any(|name| {
+            std::path::Path::new(name)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("bak"))
+        }));
 
         let _ = fs::remove_dir_all(&dir);
     }
@@ -1906,6 +1924,7 @@ default_temperature = 0.7
 
     #[test]
     fn env_override_temperature() {
+        let _guard = env_lock();
         let mut config = Config::default();
 
         std::env::set_var("ZEROCLAW_TEMPERATURE", "0.5");
@@ -1917,6 +1936,7 @@ default_temperature = 0.7
 
     #[test]
     fn env_override_temperature_out_of_range_ignored() {
+        let _guard = env_lock();
         // Clean up any leftover env vars from other tests
         std::env::remove_var("ZEROCLAW_TEMPERATURE");
 
