@@ -461,10 +461,12 @@ fn default_docker_network() -> String {
     "none".into()
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn default_docker_memory_limit_mb() -> Option<u64> {
     Some(512)
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn default_docker_cpu_limit() -> Option<f64> {
     Some(1.0)
 }
@@ -1232,10 +1234,12 @@ default_temperature = 0.7
         fs::create_dir_all(&dir).unwrap();
 
         let config_path = dir.join("config.toml");
-        let mut config = Config::default();
-        config.workspace_dir = dir.join("workspace");
-        config.config_path = config_path.clone();
-        config.default_model = Some("model-a".into());
+        let mut config = Config {
+            workspace_dir: dir.join("workspace"),
+            config_path: config_path.clone(),
+            default_model: Some("model-a".into()),
+            ..Config::default()
+        };
 
         config.save().unwrap();
         assert!(config_path.exists());
@@ -1251,7 +1255,11 @@ default_temperature = 0.7
             .map(|entry| entry.unwrap().file_name().to_string_lossy().to_string())
             .collect();
         assert!(!names.iter().any(|name| name.contains(".tmp-")));
-        assert!(!names.iter().any(|name| name.ends_with(".bak")));
+        assert!(!names.iter().any(|name| {
+            std::path::Path::new(name)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("bak"))
+        }));
 
         let _ = fs::remove_dir_all(&dir);
     }

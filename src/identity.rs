@@ -535,7 +535,8 @@ mod tests {
         // Check psychology
         let psych = identity.psychology.unwrap();
         assert_eq!(psych.mbti.unwrap(), "INTJ");
-        assert_eq!(psych.ocean.unwrap().openness.unwrap(), 0.9);
+        let openness = psych.ocean.unwrap().openness.unwrap();
+        assert!((openness - 0.9).abs() < f64::EPSILON);
         assert_eq!(psych.moral_compass.unwrap().len(), 2);
 
         // Check linguistics
@@ -571,6 +572,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn aieos_to_system_prompt_full() {
         let identity = AieosIdentity {
             identity: Some(IdentitySection {

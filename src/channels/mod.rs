@@ -743,10 +743,8 @@ pub async fn start_channels(config: Config) -> Result<()> {
                 }
             }
             Err(_) => {
-                let timeout_msg = format!(
-                    "LLM response timed out after {}s",
-                    CHANNEL_MESSAGE_TIMEOUT_SECS
-                );
+                let timeout_msg =
+                    format!("LLM response timed out after {CHANNEL_MESSAGE_TIMEOUT_SECS}s");
                 eprintln!(
                     "  ❌ {} (elapsed: {}ms)",
                     timeout_msg,

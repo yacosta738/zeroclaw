@@ -168,6 +168,7 @@ mod tests {
         }
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     fn make_router(
         providers: Vec<(&'static str, &'static str)>,
         routes: Vec<(&str, &str, &str)>,
