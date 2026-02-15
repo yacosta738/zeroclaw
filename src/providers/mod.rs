@@ -90,17 +90,78 @@ pub async fn api_error(provider: &str, response: reqwest::Response) -> anyhow::E
     anyhow::anyhow!("{provider} API error ({status}): {sanitized}")
 }
 
+/// Resolve API key for a provider from config and environment variables.
+///
+/// Resolution order:
+/// 1. Explicitly provided `api_key` parameter (trimmed, filtered if empty)
+/// 2. Provider-specific environment variable (e.g., `ANTHROPIC_OAUTH_TOKEN`, `OPENROUTER_API_KEY`)
+/// 3. Generic fallback variables (`ZEROCLAW_API_KEY`, `API_KEY`)
+///
+/// For Anthropic, the provider-specific env var is `ANTHROPIC_OAUTH_TOKEN` (for setup-tokens)
+/// followed by `ANTHROPIC_API_KEY` (for regular API keys).
+fn resolve_api_key(name: &str, api_key: Option<&str>) -> Option<String> {
+    if let Some(key) = api_key.map(str::trim).filter(|k| !k.is_empty()) {
+        return Some(key.to_string());
+    }
+
+    let provider_env_candidates: Vec<&str> = match name {
+        "anthropic" => vec!["ANTHROPIC_OAUTH_TOKEN", "ANTHROPIC_API_KEY"],
+        "openrouter" => vec!["OPENROUTER_API_KEY"],
+        "openai" => vec!["OPENAI_API_KEY"],
+        "venice" => vec!["VENICE_API_KEY"],
+        "groq" => vec!["GROQ_API_KEY"],
+        "mistral" => vec!["MISTRAL_API_KEY"],
+        "deepseek" => vec!["DEEPSEEK_API_KEY"],
+        "xai" | "grok" => vec!["XAI_API_KEY"],
+        "together" | "together-ai" => vec!["TOGETHER_API_KEY"],
+        "fireworks" | "fireworks-ai" => vec!["FIREWORKS_API_KEY"],
+        "perplexity" => vec!["PERPLEXITY_API_KEY"],
+        "cohere" => vec!["COHERE_API_KEY"],
+        "moonshot" | "kimi" => vec!["MOONSHOT_API_KEY"],
+        "glm" | "zhipu" => vec!["GLM_API_KEY"],
+        "minimax" => vec!["MINIMAX_API_KEY"],
+        "qianfan" | "baidu" => vec!["QIANFAN_API_KEY"],
+        "zai" | "z.ai" => vec!["ZAI_API_KEY"],
+        "synthetic" => vec!["SYNTHETIC_API_KEY"],
+        "opencode" | "opencode-zen" => vec!["OPENCODE_API_KEY"],
+        "vercel" | "vercel-ai" => vec!["VERCEL_API_KEY"],
+        "cloudflare" | "cloudflare-ai" => vec!["CLOUDFLARE_API_KEY"],
+        _ => vec![],
+    };
+
+    for env_var in provider_env_candidates {
+        if let Ok(value) = std::env::var(env_var) {
+            let value = value.trim();
+            if !value.is_empty() {
+                return Some(value.to_string());
+            }
+        }
+    }
+
+    for env_var in ["ZEROCLAW_API_KEY", "API_KEY"] {
+        if let Ok(value) = std::env::var(env_var) {
+            let value = value.trim();
+            if !value.is_empty() {
+                return Some(value.to_string());
+            }
+        }
+    }
+
+    None
+}
+
 /// Factory: create the right provider from config
 #[allow(clippy::too_many_lines)]
 pub fn create_provider(name: &str, api_key: Option<&str>) -> anyhow::Result<Box<dyn Provider>> {
+    let resolved_key = resolve_api_key(name, api_key);
     match name {
         // ── Primary providers (custom implementations) ───────
         "openrouter" => Ok(Box::new(openrouter::OpenRouterProvider::new(api_key))),
         "anthropic" => Ok(Box::new(anthropic::AnthropicProvider::new(api_key))),
         "openai" => Ok(Box::new(openai::OpenAiProvider::new(api_key))),
-        "ollama" => Ok(Box::new(ollama::OllamaProvider::new(
-            api_key.filter(|k| !k.is_empty()),
-        ))),
+        // Ollama is a local service that doesn't use API keys.
+        // The api_key parameter is ignored to avoid it being misinterpreted as a base_url.
+        "ollama" => Ok(Box::new(ollama::OllamaProvider::new(None))),
         "gemini" | "google" | "google-gemini" => {
             Ok(Box::new(gemini::GeminiProvider::new(api_key)))
         }
@@ -171,6 +232,9 @@ pub fn create_provider(name: &str, api_key: Option<&str>) -> anyhow::Result<Box<
         "cohere" => Ok(Box::new(OpenAiCompatibleProvider::new(
             "Cohere", "https://api.cohere.com/compatibility", api_key, AuthStyle::Bearer,
         ))),
+        "copilot" | "github-copilot" => Ok(Box::new(OpenAiCompatibleProvider::new(
+            "GitHub Copilot", "https://api.githubcopilot.com", api_key, AuthStyle::Bearer,
+        ))),
 
         // ── Bring Your Own Provider (custom URL) ───────────
         // Format: "custom:https://your-api.com" or "custom:http://localhost:1234"
@@ -187,9 +251,22 @@ pub fn create_provider(name: &str, api_key: Option<&str>) -> anyhow::Result<Box<
             )))
         }
 
+        // ── Anthropic-compatible custom endpoints ───────────
+        // Format: "anthropic-custom:https://your-api.com"
+        name if name.starts_with("anthropic-custom:") => {
+            let base_url = name.strip_prefix("anthropic-custom:").unwrap_or("");
+            if base_url.is_empty() {
+                anyhow::bail!("Anthropic-custom provider requires a URL. Format: anthropic-custom:https://your-api.com");
+            }
+            Ok(Box::new(anthropic::AnthropicProvider::with_base_url(
+                api_key, Some(base_url),
+            )))
+        }
+
         _ => anyhow::bail!(
             "Unknown provider: {name}. Check README for supported providers or run `zeroclaw onboard --interactive` to reconfigure.\n\
-             Tip: Use \"custom:https://your-api.com\" for any OpenAI-compatible endpoint."
+             Tip: Use \"custom:https://your-api.com\" for OpenAI-compatible endpoints.\n\
+             Tip: Use \"anthropic-custom:https://your-api.com\" for Anthropic-compatible endpoints."
         ),
     }
 }
@@ -264,6 +341,9 @@ mod tests {
     #[test]
     fn factory_ollama() {
         assert!(create_provider("ollama", None).is_ok());
+        // Ollama ignores the api_key parameter since it's a local service
+        assert!(create_provider("ollama", Some("dummy")).is_ok());
+        assert!(create_provider("ollama", Some("any-value-here")).is_ok());
     }
 
     #[test]
@@ -385,6 +465,12 @@ mod tests {
         assert!(create_provider("cohere", Some("key")).is_ok());
     }
 
+    #[test]
+    fn factory_copilot() {
+        assert!(create_provider("copilot", Some("key")).is_ok());
+        assert!(create_provider("github-copilot", Some("key")).is_ok());
+    }
+
     // ── Custom / BYOP provider ─────────────────────────────
 
     #[test]
@@ -413,6 +499,37 @@ mod tests {
                 "Expected 'requires a URL', got: {e}"
             ),
             Ok(_) => panic!("Expected error for empty custom URL"),
+        }
+    }
+
+    // ── Anthropic-compatible custom endpoints ─────────────────
+
+    #[test]
+    fn factory_anthropic_custom_url() {
+        let p = create_provider("anthropic-custom:https://api.example.com", Some("key"));
+        assert!(p.is_ok());
+    }
+
+    #[test]
+    fn factory_anthropic_custom_trailing_slash() {
+        let p = create_provider("anthropic-custom:https://api.example.com/", Some("key"));
+        assert!(p.is_ok());
+    }
+
+    #[test]
+    fn factory_anthropic_custom_no_key() {
+        let p = create_provider("anthropic-custom:https://api.example.com", None);
+        assert!(p.is_ok());
+    }
+
+    #[test]
+    fn factory_anthropic_custom_empty_url_errors() {
+        match create_provider("anthropic-custom:", None) {
+            Err(e) => assert!(
+                e.to_string().contains("requires a URL"),
+                "Expected 'requires a URL', got: {e}"
+            ),
+            Ok(_) => panic!("Expected error for empty anthropic-custom URL"),
         }
     }
 
@@ -487,6 +604,7 @@ mod tests {
             "fireworks",
             "perplexity",
             "cohere",
+            "copilot",
         ];
         for name in providers {
             assert!(
