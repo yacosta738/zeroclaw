@@ -1649,7 +1649,7 @@ default_temperature = 0.7
     fn env_override_temperature_out_of_range_ignored() {
         // Clean up any leftover env vars from other tests
         std::env::remove_var("ZEROCLAW_TEMPERATURE");
-        
+
         let mut config = Config::default();
         let original_temp = config.default_temperature;
 

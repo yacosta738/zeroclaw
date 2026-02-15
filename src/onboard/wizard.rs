@@ -1732,9 +1732,8 @@ fn setup_channels() -> Result<ChannelsConfig> {
                     }
                 };
 
-                let nickname: String = Input::new()
-                    .with_prompt("  Bot nickname")
-                    .interact_text()?;
+                let nickname: String =
+                    Input::new().with_prompt("  Bot nickname").interact_text()?;
 
                 if nickname.trim().is_empty() {
                     println!("  {} Skipped — nickname required", style("→").dim());
@@ -1777,7 +1776,9 @@ fn setup_channels() -> Result<ChannelsConfig> {
                 };
 
                 if allowed_users.is_empty() {
-                    print_bullet("⚠️  Empty allowlist — only you can interact. Add nicknames above.");
+                    print_bullet(
+                        "⚠️  Empty allowlist — only you can interact. Add nicknames above.",
+                    );
                 }
 
                 println!();
