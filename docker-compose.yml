@@ -1,7 +1,7 @@
 # ZeroClaw Docker Compose Example
 # 
 # Quick start:
-#   1. Copy this file and set your API key
+#   1. Copy this file and configure your environment variables
 #   2. Run: docker-compose up -d
 #   3. Access gateway at http://localhost:3000
 #
@@ -9,32 +9,53 @@
 
 services:
   zeroclaw:
-    image: ghcr.io/theonlyhennygod/zeroclaw:latest
-    # Or build locally:
+    # Use pre-built image from registry
+    image: zeroclaw:latest
+    
+    # Or build locally if needed:
     # build: .
+    
     container_name: zeroclaw
     restart: unless-stopped
     
     environment:
-      # Required: Your LLM provider API key
-      - API_KEY=${API_KEY:-}
-      # Or use the prefixed version:
-      # - ZEROCLAW_API_KEY=${ZEROCLAW_API_KEY:-}
+      # ── LLM Provider Configuration ──
       
-      # Optional: LLM provider (default: openrouter)
-      # Options: openrouter, openai, anthropic, ollama
+      # API Key (required for cloud providers, optional for local)
+      # For cloud providers: your actual API key
+      # For Ollama: the base URL (e.g., http://host.docker.internal:11434)
+      - API_KEY=${API_KEY:-}
+      # Alternative: ZEROCLAW_API_KEY=${ZEROCLAW_API_KEY:-}
+      
+      # Provider: openrouter, openai, anthropic, ollama
+      # Default: openrouter
       - PROVIDER=${PROVIDER:-openrouter}
       
-      # Optional: Model override
-      # - ZEROCLAW_MODEL=anthropic/claude-sonnet-4-20250514
+      # Model (provider-specific)
+      # Examples:
+      #   - openrouter: anthropic/claude-sonnet-4-20250514
+      #   - openai: gpt-4
+      #   - anthropic: claude-3-sonnet-20240229
+      #   - ollama: llama3.2:latest, mistral, codellama
+      - ZEROCLAW_MODEL=${ZEROCLAW_MODEL:-anthropic/claude-sonnet-4-20250514}
+      
+      # ── Gateway Configuration ──
+      
+      # Port (should match docker-compose port mapping)
+      - ZEROCLAW_GATEWAY_PORT=${ZEROCLAW_GATEWAY_PORT:-3000}
+      
+      # Workspace directory (where config and data are stored)
+      - ZEROCLAW_WORKSPACE=/zeroclaw-data/.zeroclaw/workspace
       
     volumes:
-      # Persist workspace and config
-      - zeroclaw-data:/data
-      
+      # Persist workspace data (pairing tokens, conversation history)
+      # Note: Config is set via environment variables, not persisted in volume
+      - zeroclaw-workspace:/zeroclaw-data/.zeroclaw/workspace
+       
     ports:
       # Gateway API port
-      - "3000:3000"
+      # Format: "HOST_PORT:CONTAINER_PORT"
+      - "127.0.0.1:${ZEROCLAW_GATEWAY_PORT:-3000}:3000"
     
     # Health check
     healthcheck:
@@ -45,4 +66,5 @@ services:
       start_period: 10s
 
 volumes:
-  zeroclaw-data:
+  zeroclaw-workspace:
+    driver: local
