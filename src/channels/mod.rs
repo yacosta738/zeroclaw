@@ -207,6 +207,16 @@ pub fn build_system_prompt(
                     eprintln!(
                         "Warning: Failed to load AIEOS identity: {e}. Using OpenClaw format."
                     );
+                    if let Some(path) = config.aieos_path.as_deref() {
+                        let full_path = if std::path::Path::new(path).is_absolute() {
+                            std::path::PathBuf::from(path)
+                        } else {
+                            workspace_dir.join(path)
+                        };
+                        if !full_path.exists() {
+                            let _ = writeln!(prompt, "### {path}\n\n[File not found: {path}]\n");
+                        }
+                    }
                     load_openclaw_bootstrap_files(&mut prompt, workspace_dir);
                 }
             }

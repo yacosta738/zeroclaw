@@ -822,6 +822,14 @@ impl Config {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+    use std::sync::{Mutex, OnceLock};
+
+    fn env_lock() -> std::sync::MutexGuard<'static, ()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
 
     // ── Defaults ─────────────────────────────────────────────
 
@@ -1675,6 +1683,7 @@ default_temperature = 0.7
 
     #[test]
     fn env_override_temperature() {
+        let _guard = env_lock();
         let mut config = Config::default();
 
         std::env::set_var("ZEROCLAW_TEMPERATURE", "0.5");
@@ -1686,6 +1695,7 @@ default_temperature = 0.7
 
     #[test]
     fn env_override_temperature_out_of_range_ignored() {
+        let _guard = env_lock();
         // Clean up any leftover env vars from other tests
         std::env::remove_var("ZEROCLAW_TEMPERATURE");
 
