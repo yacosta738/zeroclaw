@@ -673,9 +673,9 @@ pub struct IrcConfig {
     pub allowed_users: Vec<String>,
     /// Server password (for bouncers like ZNC)
     pub server_password: Option<String>,
-    /// NickServ IDENTIFY password
+    /// `NickServ` IDENTIFY password
     pub nickserv_password: Option<String>,
-    /// SASL PLAIN password (IRCv3)
+    /// SASL PLAIN password (`IRCv3`)
     pub sasl_password: Option<String>,
     /// Verify TLS certificate (default: true)
     pub verify_tls: Option<bool>,
@@ -738,13 +738,15 @@ impl Config {
             let mut config: Config =
                 toml::from_str(&contents).context("Failed to parse config file")?;
             // Set computed paths that are skipped during serialization
-            config.config_path = config_path.clone();
+            config.config_path.clone_from(&config_path);
             config.workspace_dir = zeroclaw_dir.join("workspace");
             Ok(config)
         } else {
-            let mut config = Config::default();
-            config.config_path = config_path.clone();
-            config.workspace_dir = zeroclaw_dir.join("workspace");
+            let config = Config {
+                config_path: config_path.clone(),
+                workspace_dir: zeroclaw_dir.join("workspace"),
+                ..Config::default()
+            };
             config.save()?;
             Ok(config)
         }

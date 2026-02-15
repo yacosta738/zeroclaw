@@ -42,8 +42,7 @@ impl AnthropicProvider {
 
     pub fn with_base_url(api_key: Option<&str>, base_url: Option<&str>) -> Self {
         let base_url = base_url
-            .map(|u| u.trim_end_matches('/'))
-            .unwrap_or("https://api.anthropic.com")
+            .map_or("https://api.anthropic.com", |u| u.trim_end_matches('/'))
             .to_string();
         Self {
             credential: api_key

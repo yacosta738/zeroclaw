@@ -74,10 +74,10 @@ fn spawn_supervised_listener(
     })
 }
 
-/// Load OpenClaw format bootstrap files into the prompt.
+/// Load `OpenClaw` format bootstrap files into the prompt.
 fn load_openclaw_bootstrap_files(prompt: &mut String, workspace_dir: &std::path::Path) {
-    use std::fmt::Write;
-    prompt.push_str("The following workspace files define your identity, behavior, and context.\n\n");
+    prompt
+        .push_str("The following workspace files define your identity, behavior, and context.\n\n");
 
     let bootstrap_files = [
         "AGENTS.md",
@@ -204,7 +204,9 @@ pub fn build_system_prompt(
                 }
                 Err(e) => {
                     // Log error but don't fail - fall back to OpenClaw
-                    eprintln!("Warning: Failed to load AIEOS identity: {e}. Using OpenClaw format.");
+                    eprintln!(
+                        "Warning: Failed to load AIEOS identity: {e}. Using OpenClaw format."
+                    );
                     load_openclaw_bootstrap_files(&mut prompt, workspace_dir);
                 }
             }
@@ -255,8 +257,7 @@ fn inject_workspace_file(prompt: &mut String, workspace_dir: &std::path::Path, f
                 trimmed
                     .char_indices()
                     .nth(BOOTSTRAP_MAX_CHARS)
-                    .map(|(idx, _)| &trimmed[..idx])
-                    .unwrap_or(trimmed)
+                    .map_or(trimmed, |(idx, _)| &trimmed[..idx])
             } else {
                 trimmed
             };
@@ -339,6 +340,7 @@ fn classify_health_result(
 }
 
 /// Run health checks for configured channels.
+#[allow(clippy::too_many_lines)]
 pub async fn doctor_channels(config: Config) -> Result<()> {
     let mut channels: Vec<(&'static str, Arc<dyn Channel>)> = Vec::new();
 
@@ -533,7 +535,13 @@ pub async fn start_channels(config: Config) -> Result<()> {
         ));
     }
 
-    let system_prompt = build_system_prompt(&workspace, &model, &tool_descs, &skills, Some(&config.identity));
+    let system_prompt = build_system_prompt(
+        &workspace,
+        &model,
+        &tool_descs,
+        &skills,
+        Some(&config.identity),
+    );
 
     if !skills.is_empty() {
         println!(
