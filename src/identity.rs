@@ -578,7 +578,7 @@ mod tests {
                     first: Some("Nova".into()),
                     last: Some("AI".into()),
                     nickname: Some("Nov".into()),
-                    ..Default::default()
+                    full: Some("Nova AI".into()),
                 }),
                 bio: Some("A helpful assistant.".into()),
                 origin: Some("Silicon Valley".into()),
