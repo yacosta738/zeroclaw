@@ -2,8 +2,7 @@
 FROM rust:1.83-slim AS builder
 
 WORKDIR /app
-COPY Cargo.toml Cargo.lock ./
-COPY src/ src/
+COPY . .
 
 RUN cargo build --release --locked && \
     strip target/release/zeroclaw
