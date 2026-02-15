@@ -1,5 +1,6 @@
 pub mod cli;
 pub mod discord;
+pub mod email_channel;
 pub mod imessage;
 pub mod matrix;
 pub mod slack;
@@ -19,6 +20,7 @@ pub use whatsapp::WhatsAppChannel;
 use crate::config::Config;
 use crate::memory::{self, Memory};
 use crate::providers::{self, Provider};
+use crate::util::truncate_with_ellipsis;
 use anyhow::Result;
 use std::sync::Arc;
 use std::time::Duration;
@@ -190,38 +192,6 @@ pub fn build_system_prompt(
     }
 }
 
-/// Inject `OpenClaw` (markdown) identity files into the prompt
-fn inject_openclaw_identity(prompt: &mut String, workspace_dir: &std::path::Path) {
-    #[allow(unused_imports)]
-    use std::fmt::Write;
-
-    prompt.push_str("## Project Context\n\n");
-    prompt
-        .push_str("The following workspace files define your identity, behavior, and context.\n\n");
-
-    let bootstrap_files = [
-        "AGENTS.md",
-        "SOUL.md",
-        "TOOLS.md",
-        "IDENTITY.md",
-        "USER.md",
-        "HEARTBEAT.md",
-    ];
-
-    for filename in &bootstrap_files {
-        inject_workspace_file(prompt, workspace_dir, filename);
-    }
-
-    // BOOTSTRAP.md — only if it exists (first-run ritual)
-    let bootstrap_path = workspace_dir.join("BOOTSTRAP.md");
-    if bootstrap_path.exists() {
-        inject_workspace_file(prompt, workspace_dir, "BOOTSTRAP.md");
-    }
-
-    // MEMORY.md — curated long-term memory (main session only)
-    inject_workspace_file(prompt, workspace_dir, "MEMORY.md");
-}
-
 /// Inject a single workspace file into the prompt with truncation and missing-file markers.
 fn inject_workspace_file(prompt: &mut String, workspace_dir: &std::path::Path, filename: &str) {
     use std::fmt::Write;
@@ -252,17 +222,15 @@ fn inject_workspace_file(prompt: &mut String, workspace_dir: &std::path::Path, f
     }
 }
 
-pub fn handle_command(command: super::ChannelCommands, config: &Config) -> Result<()> {
+pub fn handle_command(command: crate::ChannelCommands, config: &Config) -> Result<()> {
     match command {
-        super::ChannelCommands::Start => {
-            // Handled in main.rs (needs async), this is unreachable
-            unreachable!("Start is handled in main.rs")
+        crate::ChannelCommands::Start => {
+            anyhow::bail!("Start must be handled in main.rs (requires async runtime)")
         }
-        super::ChannelCommands::Doctor => {
-            // Handled in main.rs (needs async), this is unreachable
-            unreachable!("Doctor is handled in main.rs")
+        crate::ChannelCommands::Doctor => {
+            anyhow::bail!("Doctor must be handled in main.rs (requires async runtime)")
         }
-        super::ChannelCommands::List => {
+        crate::ChannelCommands::List => {
             println!("Channels:");
             println!("  ✅ CLI (always available)");
             for (name, configured) in [
@@ -281,7 +249,7 @@ pub fn handle_command(command: super::ChannelCommands, config: &Config) -> Resul
             println!("To configure:      zeroclaw onboard");
             Ok(())
         }
-        super::ChannelCommands::Add {
+        crate::ChannelCommands::Add {
             channel_type,
             config: _,
         } => {
@@ -289,7 +257,7 @@ pub fn handle_command(command: super::ChannelCommands, config: &Config) -> Resul
                 "Channel type '{channel_type}' — use `zeroclaw onboard` to configure channels"
             );
         }
-        super::ChannelCommands::Remove { name } => {
+        crate::ChannelCommands::Remove { name } => {
             anyhow::bail!("Remove channel '{name}' — edit ~/.zeroclaw/config.toml directly");
         }
     }
@@ -602,11 +570,7 @@ pub async fn start_channels(config: Config) -> Result<()> {
             "  💬 [{}] from {}: {}",
             msg.channel,
             msg.sender,
-            if msg.content.len() > 80 {
-                format!("{}...", &msg.content[..80])
-            } else {
-                msg.content.clone()
-            }
+            truncate_with_ellipsis(&msg.content, 80)
         );
 
         // Auto-save to memory
@@ -628,11 +592,7 @@ pub async fn start_channels(config: Config) -> Result<()> {
             Ok(response) => {
                 println!(
                     "  🤖 Reply: {}",
-                    if response.len() > 80 {
-                        format!("{}...", &response[..80])
-                    } else {
-                        response.clone()
-                    }
+                    truncate_with_ellipsis(&response, 80)
                 );
                 // Find the channel that sent this message and reply
                 for ch in &channels {
