@@ -1225,7 +1225,6 @@ default_temperature = 0.7
         let _ = fs::remove_dir_all(&dir);
     }
 
-
     #[test]
     fn config_save_atomic_cleanup() {
         let dir =
