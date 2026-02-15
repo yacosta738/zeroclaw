@@ -43,6 +43,28 @@ impl OpenAiCompatibleProvider {
                 .unwrap_or_else(|_| Client::new()),
         }
     }
+
+    /// Build the full URL for chat completions, detecting if base_url already includes the path.
+    /// This allows custom providers with non-standard endpoints (e.g., VolcEngine ARK uses
+    /// `/api/coding/v3/chat/completions` instead of `/v1/chat/completions`).
+    fn chat_completions_url(&self) -> String {
+        // If base_url already contains "chat/completions", use it as-is
+        if self.base_url.contains("chat/completions") {
+            self.base_url.clone()
+        } else {
+            format!("{}/chat/completions", self.base_url)
+        }
+    }
+
+    /// Build the full URL for responses API, detecting if base_url already includes the path.
+    fn responses_url(&self) -> String {
+        // If base_url already contains "responses", use it as-is
+        if self.base_url.contains("responses") {
+            self.base_url.clone()
+        } else {
+            format!("{}/v1/responses", self.base_url)
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -71,6 +93,129 @@ struct Choice {
 #[derive(Debug, Deserialize)]
 struct ResponseMessage {
     content: String,
+}
+
+#[derive(Debug, Serialize)]
+struct ResponsesRequest {
+    model: String,
+    input: Vec<ResponsesInput>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    instructions: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stream: Option<bool>,
+}
+
+#[derive(Debug, Serialize)]
+struct ResponsesInput {
+    role: String,
+    content: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ResponsesResponse {
+    #[serde(default)]
+    output: Vec<ResponsesOutput>,
+    #[serde(default)]
+    output_text: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ResponsesOutput {
+    #[serde(default)]
+    content: Vec<ResponsesContent>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ResponsesContent {
+    #[serde(rename = "type")]
+    kind: Option<String>,
+    text: Option<String>,
+}
+
+fn first_nonempty(text: Option<&str>) -> Option<String> {
+    text.and_then(|value| {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        }
+    })
+}
+
+fn extract_responses_text(response: ResponsesResponse) -> Option<String> {
+    if let Some(text) = first_nonempty(response.output_text.as_deref()) {
+        return Some(text);
+    }
+
+    for item in &response.output {
+        for content in &item.content {
+            if content.kind.as_deref() == Some("output_text") {
+                if let Some(text) = first_nonempty(content.text.as_deref()) {
+                    return Some(text);
+                }
+            }
+        }
+    }
+
+    for item in &response.output {
+        for content in &item.content {
+            if let Some(text) = first_nonempty(content.text.as_deref()) {
+                return Some(text);
+            }
+        }
+    }
+
+    None
+}
+
+impl OpenAiCompatibleProvider {
+    fn apply_auth_header(
+        &self,
+        req: reqwest::RequestBuilder,
+        api_key: &str,
+    ) -> reqwest::RequestBuilder {
+        match &self.auth_header {
+            AuthStyle::Bearer => req.header("Authorization", format!("Bearer {api_key}")),
+            AuthStyle::XApiKey => req.header("x-api-key", api_key),
+            AuthStyle::Custom(header) => req.header(header, api_key),
+        }
+    }
+
+    async fn chat_via_responses(
+        &self,
+        api_key: &str,
+        system_prompt: Option<&str>,
+        message: &str,
+        model: &str,
+    ) -> anyhow::Result<String> {
+        let request = ResponsesRequest {
+            model: model.to_string(),
+            input: vec![ResponsesInput {
+                role: "user".to_string(),
+                content: message.to_string(),
+            }],
+            instructions: system_prompt.map(str::to_string),
+            stream: Some(false),
+        };
+
+        let url = self.responses_url();
+
+        let response = self
+            .apply_auth_header(self.client.post(&url).json(&request), api_key)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let error = response.text().await?;
+            anyhow::bail!("{} Responses API error: {error}", self.name);
+        }
+
+        let responses: ResponsesResponse = response.json().await?;
+
+        extract_responses_text(responses)
+            .ok_or_else(|| anyhow::anyhow!("No response from {} Responses API", self.name))
+    }
 }
 
 #[async_trait]
@@ -109,26 +254,30 @@ impl Provider for OpenAiCompatibleProvider {
             temperature,
         };
 
-        let url = format!("{}/v1/chat/completions", self.base_url);
+        let url = self.chat_completions_url();
 
-        let mut req = self.client.post(&url).json(&request);
-
-        match &self.auth_header {
-            AuthStyle::Bearer => {
-                req = req.header("Authorization", format!("Bearer {api_key}"));
-            }
-            AuthStyle::XApiKey => {
-                req = req.header("x-api-key", api_key.as_str());
-            }
-            AuthStyle::Custom(header) => {
-                req = req.header(header.as_str(), api_key.as_str());
-            }
-        }
-
-        let response = req.send().await?;
+        let response = self
+            .apply_auth_header(self.client.post(&url).json(&request), api_key)
+            .send()
+            .await?;
 
         if !response.status().is_success() {
-            return Err(super::api_error(&self.name, response).await);
+            let status = response.status();
+            let error = response.text().await?;
+
+            if status == reqwest::StatusCode::NOT_FOUND {
+                return self
+                    .chat_via_responses(api_key, system_prompt, message, model)
+                    .await
+                    .map_err(|responses_err| {
+                        anyhow::anyhow!(
+                            "{} API error: {error} (chat completions unavailable; responses fallback failed: {responses_err})",
+                            self.name
+                        )
+                    });
+            }
+
+            anyhow::bail!("{} API error: {error}", self.name);
         }
 
         let chat_response: ChatResponse = response.json().await?;
@@ -262,5 +411,117 @@ mod tests {
                 p.name
             );
         }
+    }
+
+    #[test]
+    fn responses_extracts_top_level_output_text() {
+        let json = r#"{"output_text":"Hello from top-level","output":[]}"#;
+        let response: ResponsesResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            extract_responses_text(response).as_deref(),
+            Some("Hello from top-level")
+        );
+    }
+
+    #[test]
+    fn responses_extracts_nested_output_text() {
+        let json =
+            r#"{"output":[{"content":[{"type":"output_text","text":"Hello from nested"}]}]}"#;
+        let response: ResponsesResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            extract_responses_text(response).as_deref(),
+            Some("Hello from nested")
+        );
+    }
+
+    #[test]
+    fn responses_extracts_any_text_as_fallback() {
+        let json = r#"{"output":[{"content":[{"type":"message","text":"Fallback text"}]}]}"#;
+        let response: ResponsesResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            extract_responses_text(response).as_deref(),
+            Some("Fallback text")
+        );
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // Custom endpoint path tests (Issue #114)
+    // ══════════════════════════════════════════════════════════
+
+    #[test]
+    fn chat_completions_url_standard_openai() {
+        // Standard OpenAI-compatible providers get /chat/completions appended
+        let p = make_provider("openai", "https://api.openai.com/v1", None);
+        assert_eq!(p.chat_completions_url(), "https://api.openai.com/v1/chat/completions");
+    }
+
+    #[test]
+    fn chat_completions_url_trailing_slash() {
+        // Trailing slash is stripped, then /chat/completions appended
+        let p = make_provider("test", "https://api.example.com/v1/", None);
+        assert_eq!(p.chat_completions_url(), "https://api.example.com/v1/chat/completions");
+    }
+
+    #[test]
+    fn chat_completions_url_volcengine_ark() {
+        // VolcEngine ARK uses custom path - should use as-is
+        let p = make_provider(
+            "volcengine",
+            "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions",
+            None,
+        );
+        assert_eq!(
+            p.chat_completions_url(),
+            "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions"
+        );
+    }
+
+    #[test]
+    fn chat_completions_url_custom_full_endpoint() {
+        // Custom provider with full endpoint path
+        let p = make_provider(
+            "custom",
+            "https://my-api.example.com/v2/llm/chat/completions",
+            None,
+        );
+        assert_eq!(
+            p.chat_completions_url(),
+            "https://my-api.example.com/v2/llm/chat/completions"
+        );
+    }
+
+    #[test]
+    fn responses_url_standard() {
+        // Standard providers get /v1/responses appended
+        let p = make_provider("test", "https://api.example.com", None);
+        assert_eq!(p.responses_url(), "https://api.example.com/v1/responses");
+    }
+
+    #[test]
+    fn responses_url_custom_full_endpoint() {
+        // Custom provider with full responses endpoint
+        let p = make_provider(
+            "custom",
+            "https://my-api.example.com/api/v2/responses",
+            None,
+        );
+        assert_eq!(
+            p.responses_url(),
+            "https://my-api.example.com/api/v2/responses"
+        );
+    }
+
+    #[test]
+    fn chat_completions_url_without_v1() {
+        // Provider configured without /v1 in base URL
+        let p = make_provider("test", "https://api.example.com", None);
+        assert_eq!(p.chat_completions_url(), "https://api.example.com/chat/completions");
+    }
+
+    #[test]
+    fn chat_completions_url_base_with_v1() {
+        // Provider configured with /v1 in base URL
+        let p = make_provider("test", "https://api.example.com/v1", None);
+        assert_eq!(p.chat_completions_url(), "https://api.example.com/v1/chat/completions");
     }
 }
